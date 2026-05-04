@@ -4,17 +4,25 @@
   const COLS = 10;
   const ROWS = 20;
   const BLOCK = 32;
+  /** Je Tetromino-Typ eine eigene Farbe (rgb für maximale Browser-Kompatibilität) */
   const COLORS = {
-    I: "#5eead4",
-    O: "#fde047",
-    T: "#c084fc",
-    S: "#4ade80",
-    Z: "#f87171",
-    J: "#60a5fa",
-    L: "#fb923c",
-    ghost: "rgba(255,255,255,0.28)",
-    grid: "rgba(255,255,255,0.06)",
+    I: "rgb(0, 240, 240)",
+    O: "rgb(255, 230, 0)",
+    T: "rgb(200, 100, 255)",
+    S: "rgb(0, 230, 80)",
+    Z: "rgb(255, 80, 80)",
+    J: "rgb(60, 140, 255)",
+    L: "rgb(255, 150, 40)",
+    ghost: "rgba(200, 220, 255, 0.45)",
+    grid: "rgba(255, 255, 255, 0.12)",
+    rim: "rgb(255, 255, 255)",
+    fallback: "rgb(255, 0, 255)",
   };
+
+  function fillForPiece(type) {
+    const c = COLORS[type];
+    return typeof c === "string" ? c : COLORS.fallback;
+  }
 
   /** 4 Rotationen je Form: 4×4-Matrix, 1 = Block */
   const SHAPES = {
@@ -187,9 +195,11 @@
   const BAG = Object.keys(SHAPES);
 
   const canvas = document.getElementById("game");
-  const ctx = canvas.getContext("2d", { alpha: false });
   const nextCanvas = document.getElementById("next-canvas");
-  const nextCtx = nextCanvas.getContext("2d", { alpha: false });
+  canvas.width = COLS * BLOCK;
+  canvas.height = ROWS * BLOCK;
+  const ctx = canvas.getContext("2d");
+  const nextCtx = nextCanvas.getContext("2d");
   if (!ctx || !nextCtx) {
     document.body.innerHTML = "<p>Canvas wird in diesem Browser nicht unterstützt.</p>";
     throw new Error("no 2d context");
@@ -343,20 +353,27 @@
   }
 
   function drawBlock(x, y, color, alpha) {
-    const pad = 1;
-    const px = x * BLOCK + pad;
-    const py = y * BLOCK + pad;
-    const s = BLOCK - pad * 2;
+    const px = x * BLOCK;
+    const py = y * BLOCK;
+    const inset = 2;
+    const inner = BLOCK - inset * 2;
+    ctx.save();
     ctx.globalAlpha = alpha !== undefined ? alpha : 1;
+    ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = COLORS.rim;
+    ctx.fillRect(px + 1, py + 1, BLOCK - 2, BLOCK - 2);
     ctx.fillStyle = color;
-    ctx.fillRect(px, py, s, s);
-    ctx.strokeStyle = "rgba(255,255,255,0.55)";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(px + 0.5, py + 0.5, s - 1, s - 1);
-    ctx.globalAlpha = 1;
+    ctx.fillRect(px + inset, py + inset, inner, inner);
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.fillRect(px + inset, py + inset, inner, Math.max(2, Math.floor(inner * 0.22)));
+    ctx.restore();
   }
 
   function drawBoard() {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = "source-over";
+    ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = "#0d1117";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     for (let c = 0; c <= COLS; c++) {
@@ -374,7 +391,7 @@
     }
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
-        if (board[r][c]) drawBlock(c, r, COLORS[board[r][c]]);
+        if (board[r][c]) drawBlock(c, r, fillForPiece(board[r][c]));
       }
     }
     if (!running && !current) {
@@ -393,7 +410,7 @@
             if (!s[r][c]) continue;
             const br = gh.row + r,
               bc = gh.col + c;
-            if (br >= 0 && br < ROWS) drawBlock(bc, br, COLORS.ghost, 0.5);
+            if (bc >= 0 && bc < COLS && br < ROWS) drawBlock(bc, br, COLORS.ghost, 0.55);
           }
         }
       }
@@ -403,7 +420,9 @@
           if (!shape[r][c]) continue;
           const br = current.row + r,
             bc = current.col + c;
-          if (br >= 0 && br < ROWS) drawBlock(bc, br, COLORS[current.type]);
+          if (bc >= 0 && bc < COLS && br < ROWS) {
+            drawBlock(bc, br, fillForPiece(current.type));
+          }
         }
       }
     }
@@ -420,6 +439,8 @@
 
   function drawNext() {
     const size = 24;
+    nextCtx.setTransform(1, 0, 0, 1, 0, 0);
+    nextCtx.globalAlpha = 1;
     nextCtx.fillStyle = "#161b22";
     nextCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
     if (!nextType) return;
@@ -442,14 +463,16 @@
     const h = maxR - minR + 1;
     const ox = (nextCanvas.width - w * size) / 2 - minC * size;
     const oy = (nextCanvas.height - h * size) / 2 - minR * size;
-    const color = COLORS[nextType];
+    const color = fillForPiece(nextType);
     for (let r = 0; r < 4; r++) {
       for (let c = 0; c < 4; c++) {
         if (!shape[r][c]) continue;
         const x = ox + c * size,
           y = oy + r * size;
+        nextCtx.fillStyle = "#ffffff";
+        nextCtx.fillRect(x, y, size, size);
         nextCtx.fillStyle = color;
-        nextCtx.fillRect(x + 1, y + 1, size - 2, size - 2);
+        nextCtx.fillRect(x + 2, y + 2, size - 4, size - 4);
       }
     }
   }
