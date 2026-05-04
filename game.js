@@ -3,7 +3,6 @@
 
   const COLS = 10;
   const ROWS = 20;
-  const BLOCK = 32;
   /** Je Tetromino-Typ eine eigene Farbe (rgb für maximale Browser-Kompatibilität) */
   const COLORS = {
     I: "rgb(0, 240, 240)",
@@ -14,8 +13,6 @@
     J: "rgb(60, 140, 255)",
     L: "rgb(255, 150, 40)",
     ghost: "rgba(200, 220, 255, 0.45)",
-    grid: "rgba(255, 255, 255, 0.12)",
-    rim: "rgb(255, 255, 255)",
     fallback: "rgb(255, 0, 255)",
   };
 
@@ -194,16 +191,24 @@
 
   const BAG = Object.keys(SHAPES);
 
-  const canvas = document.getElementById("game");
-  const nextCanvas = document.getElementById("next-canvas");
-  canvas.width = COLS * BLOCK;
-  canvas.height = ROWS * BLOCK;
-  const ctx = canvas.getContext("2d");
-  const nextCtx = nextCanvas.getContext("2d");
-  if (!ctx || !nextCtx) {
-    document.body.innerHTML = "<p>Canvas wird in diesem Browser nicht unterstützt.</p>";
-    throw new Error("no 2d context");
+  const tetField = document.getElementById("tet-field");
+  const fieldMsg = document.getElementById("field-msg");
+  const nextField = document.getElementById("next-field");
+  const tetCells = [];
+  for (let i = 0; i < ROWS * COLS; i++) {
+    const el = document.createElement("div");
+    el.className = "tet-cell";
+    tetField.appendChild(el);
+    tetCells.push(el);
   }
+  const nextCells = [];
+  for (let i = 0; i < 16; i++) {
+    const el = document.createElement("div");
+    el.className = "next-cell";
+    nextField.appendChild(el);
+    nextCells.push(el);
+  }
+
   const elScore = document.getElementById("score");
   const elLevel = document.getElementById("level");
   const elLines = document.getElementById("lines");
@@ -224,6 +229,11 @@
   let running = false;
   let paused = false;
   let animFrame = null;
+
+  /** Nach let board/bag/nextType — sonst TDZ: „can't access lexical declaration 'board' before initialization“. */
+  emptyBoard();
+  refillBag();
+  nextType = pullFromBag();
 
   function shuffle(a) {
     for (let i = a.length - 1; i > 0; i--) {
@@ -352,127 +362,87 @@
     return { ...current, row: gr };
   }
 
-  function drawBlock(x, y, color, alpha) {
-    const px = x * BLOCK;
-    const py = y * BLOCK;
-    const inset = 2;
-    const inner = BLOCK - inset * 2;
-    ctx.save();
-    ctx.globalAlpha = alpha !== undefined ? alpha : 1;
-    ctx.globalCompositeOperation = "source-over";
-    ctx.fillStyle = COLORS.rim;
-    ctx.fillRect(px + 1, py + 1, BLOCK - 2, BLOCK - 2);
-    ctx.fillStyle = color;
-    ctx.fillRect(px + inset, py + inset, inner, inner);
-    ctx.fillStyle = "rgba(255,255,255,0.35)";
-    ctx.fillRect(px + inset, py + inset, inner, Math.max(2, Math.floor(inner * 0.22)));
-    ctx.restore();
-  }
-
-  function drawBoard() {
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.globalAlpha = 1;
-    ctx.globalCompositeOperation = "source-over";
-    ctx.imageSmoothingEnabled = false;
-    ctx.fillStyle = "#0d1117";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    for (let c = 0; c <= COLS; c++) {
-      ctx.strokeStyle = COLORS.grid;
-      ctx.beginPath();
-      ctx.moveTo(c * BLOCK, 0);
-      ctx.lineTo(c * BLOCK, ROWS * BLOCK);
-      ctx.stroke();
-    }
-    for (let r = 0; r <= ROWS; r++) {
-      ctx.beginPath();
-      ctx.moveTo(0, r * BLOCK);
-      ctx.lineTo(COLS * BLOCK, r * BLOCK);
-      ctx.stroke();
-    }
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
-        if (board[r][c]) drawBlock(c, r, fillForPiece(board[r][c]));
-      }
-    }
-    if (!running && !current) {
-      ctx.fillStyle = "rgba(230, 237, 243, 0.85)";
-      ctx.font = "600 16px system-ui, sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("Zuerst „Spiel starten“ klicken", canvas.width / 2, canvas.height / 2);
-    }
-    if (current) {
-      const gh = ghostPosition();
-      if (gh) {
-        const s = getShapeCells(gh.type, gh.rot);
-        for (let r = 0; r < 4; r++) {
-          for (let c = 0; c < 4; c++) {
-            if (!s[r][c]) continue;
-            const br = gh.row + r,
-              bc = gh.col + c;
-            if (bc >= 0 && bc < COLS && br < ROWS) drawBlock(bc, br, COLORS.ghost, 0.55);
-          }
-        }
-      }
-      const shape = getShapeCells(current.type, current.rot);
-      for (let r = 0; r < 4; r++) {
-        for (let c = 0; c < 4; c++) {
-          if (!shape[r][c]) continue;
-          const br = current.row + r,
-            bc = current.col + c;
-          if (bc >= 0 && bc < COLS && br < ROWS) {
-            drawBlock(bc, br, fillForPiece(current.type));
-          }
-        }
-      }
-    }
-    if (paused && running) {
-      ctx.fillStyle = "rgba(13, 17, 23, 0.65)";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = "#e6edf3";
-      ctx.font = "bold 28px system-ui, sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("Pause · P", canvas.width / 2, canvas.height / 2);
-    }
-  }
-
-  function drawNext() {
-    const size = 24;
-    nextCtx.setTransform(1, 0, 0, 1, 0, 0);
-    nextCtx.globalAlpha = 1;
-    nextCtx.fillStyle = "#161b22";
-    nextCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
-    if (!nextType) return;
-    const shape = getShapeCells(nextType, 0);
-    let minC = 4,
-      maxC = -1,
-      minR = 4,
-      maxR = -1;
-    for (let r = 0; r < 4; r++) {
-      for (let c = 0; c < 4; c++) {
-        if (shape[r][c]) {
-          minC = Math.min(minC, c);
-          maxC = Math.max(maxC, c);
-          minR = Math.min(minR, r);
-          maxR = Math.max(maxR, r);
-        }
-      }
-    }
-    const w = maxC - minC + 1;
-    const h = maxR - minR + 1;
-    const ox = (nextCanvas.width - w * size) / 2 - minC * size;
-    const oy = (nextCanvas.height - h * size) / 2 - minR * size;
-    const color = fillForPiece(nextType);
+  /** Liegt der Stein `piece` (mit row/col/rot) auf Spielfeldzelle (br, bc)? */
+  function pieceAtCell(piece, br, bc) {
+    const shape = getShapeCells(piece.type, piece.rot);
     for (let r = 0; r < 4; r++) {
       for (let c = 0; c < 4; c++) {
         if (!shape[r][c]) continue;
-        const x = ox + c * size,
-          y = oy + r * size;
-        nextCtx.fillStyle = "#ffffff";
-        nextCtx.fillRect(x, y, size, size);
-        nextCtx.fillStyle = color;
-        nextCtx.fillRect(x + 2, y + 2, size - 4, size - 4);
+        if (piece.row + r === br && piece.col + c === bc) return true;
+      }
+    }
+    return false;
+  }
+
+  function styleTetCell(el, bg, borderStrong) {
+    if (bg) {
+      el.style.backgroundColor = bg;
+      el.style.borderColor = borderStrong
+        ? "rgba(255,255,255,0.6)"
+        : "rgba(255,255,255,0.35)";
+      el.style.boxShadow = borderStrong
+        ? "inset 0 0 0 1px rgba(255,255,255,0.25)"
+        : "none";
+    } else {
+      el.style.backgroundColor = "#0d1117";
+      el.style.borderColor = "rgba(255,255,255,0.16)";
+      el.style.boxShadow = "none";
+    }
+  }
+
+  function updateFieldMsg() {
+    fieldMsg.classList.remove("is-on", "is-pause");
+    fieldMsg.textContent = "";
+    if (paused && running) {
+      fieldMsg.textContent = "Pause · P";
+      fieldMsg.classList.add("is-on", "is-pause");
+    } else if (!running && !current) {
+      fieldMsg.textContent = "Zuerst „Spiel starten“ klicken";
+      fieldMsg.classList.add("is-on");
+    }
+  }
+
+  function renderField() {
+    const gh = current ? ghostPosition() : null;
+    for (let r = 0; r < ROWS; r++) {
+      const row = board[r];
+      if (!row) continue;
+      for (let c = 0; c < COLS; c++) {
+        const el = tetCells[r * COLS + c];
+        let bg = null;
+        let strong = true;
+        if (row[c]) {
+          bg = fillForPiece(row[c]);
+        } else if (current && pieceAtCell(current, r, c)) {
+          bg = fillForPiece(current.type);
+        } else if (gh && pieceAtCell(gh, r, c)) {
+          bg = COLORS.ghost;
+          strong = false;
+        }
+        styleTetCell(el, bg, strong);
+      }
+    }
+    updateFieldMsg();
+  }
+
+  function renderNext() {
+    for (let i = 0; i < 16; i++) {
+      const el = nextCells[i];
+      el.style.backgroundColor = "#161b22";
+      el.style.borderColor = "rgba(255,255,255,0.22)";
+      el.style.boxShadow = "none";
+    }
+    if (!nextType) return;
+    const shape = getShapeCells(nextType, 0);
+    const color = fillForPiece(nextType);
+    for (let sr = 0; sr < 4; sr++) {
+      for (let sc = 0; sc < 4; sc++) {
+        const el = nextCells[sr * 4 + sc];
+        if (shape[sr][sc]) {
+          el.style.backgroundColor = color;
+          el.style.borderColor = "rgba(255,255,255,0.55)";
+          el.style.boxShadow = "inset 0 0 0 1px rgba(255,255,255,0.3)";
+        }
       }
     }
   }
@@ -504,8 +474,8 @@
 
   function loop() {
     tick();
-    drawBoard();
-    drawNext();
+    renderField();
+    renderNext();
     animFrame = requestAnimationFrame(loop);
   }
 

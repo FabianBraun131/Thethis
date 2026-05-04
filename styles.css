@@ -45,19 +45,90 @@ h1 {
   padding: 1rem;
 }
 
-/* Verhindert, dass „Hoher Kontrast“ / erzwungene Systemfarben die Blöcke unsichtbar machen */
-#game,
-#next-canvas {
+/* DOM-Zellen statt Canvas: liegen garantiert im Vordergrund des Feldes */
+.field-wrap {
+  position: relative;
+  width: 320px;
+  height: 640px;
+  z-index: 2;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  background: #0d1117;
+}
+
+.tet-field {
+  display: grid;
+  grid-template-columns: repeat(10, 32px);
+  grid-template-rows: repeat(20, 32px);
+  width: 320px;
+  height: 640px;
+  position: relative;
+  z-index: 1;
+}
+
+.tet-cell {
+  width: 32px;
+  height: 32px;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background-color: #0d1117;
   forced-color-adjust: none;
   -webkit-forced-color-adjust: none;
 }
 
-#game {
-  display: block;
-  width: 320px;
-  height: 640px;
-  border-radius: 8px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+.field-msg {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1rem;
+  background: rgba(13, 17, 23, 0.78);
+  color: #e6edf3;
+  font-weight: 600;
+  font-size: 1rem;
+  line-height: 1.35;
+  pointer-events: none;
+}
+
+.field-msg.is-on {
+  display: flex;
+}
+
+.field-msg.is-pause {
+  font-size: 1.65rem;
+}
+
+.next-wrap {
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 2;
+}
+
+.next-field {
+  display: grid;
+  grid-template-columns: repeat(4, 24px);
+  grid-template-rows: repeat(4, 24px);
+  width: 96px;
+  height: 96px;
+}
+
+.next-cell {
+  width: 24px;
+  height: 24px;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background-color: #161b22;
+  forced-color-adjust: none;
+  -webkit-forced-color-adjust: none;
 }
 
 .side {
@@ -82,13 +153,6 @@ h1 {
   font-weight: 700;
   margin-bottom: 1rem;
   font-variant-numeric: tabular-nums;
-}
-
-#next-canvas {
-  display: block;
-  margin: 0 auto 1rem;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
 }
 
 .controls {

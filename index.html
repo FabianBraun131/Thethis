@@ -10,7 +10,10 @@
 <body>
   <h1>Tetris</h1>
   <div class="wrap">
-    <canvas id="game" width="320" height="640" aria-label="Spielfeld"></canvas>
+    <div class="field-wrap" id="field-wrap">
+      <div class="tet-field" id="tet-field" aria-label="Spielfeld"></div>
+      <div class="field-msg" id="field-msg" aria-live="polite"></div>
+    </div>
     <div class="side">
       <h2>Punkte</h2>
       <div class="stat" id="score">0</div>
@@ -19,7 +22,9 @@
       <h2>Linien</h2>
       <div class="stat" id="lines">0</div>
       <h2>Nächstes</h2>
-      <canvas id="next-canvas" width="120" height="120"></canvas>
+      <div class="next-wrap">
+        <div class="next-field" id="next-field" aria-hidden="true"></div>
+      </div>
       <div class="controls">
         <kbd>←</kbd><kbd>→</kbd> Bewegen &nbsp;
         <kbd>↓</kbd> Schneller<br />
