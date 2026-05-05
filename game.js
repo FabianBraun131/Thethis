@@ -60,11 +60,32 @@
       scoreId: "score",
       levelId: "level",
       linesId: "lines",
-      dropKey: (e) => e.key === " " || e.code === "Space",
-      leftKey: (e) => e.key === "a" || e.key === "A",
-      rightKey: (e) => e.key === "d" || e.key === "D",
-      downKey: (e) => e.key === "s" || e.key === "S",
-      rotateKey: (e) => e.key === "w" || e.key === "W",
+      // Solo: WASD + Space oder Pfeile + Enter; Multiplayer: nur WASD + Space (Pfeile/Enter = P2)
+      dropKey: (e) => {
+        const space = e.key === " " || e.code === "Space";
+        if (multiplayer) return space;
+        return space || e.key === "Enter";
+      },
+      leftKey: (e) => {
+        const wasd = e.key === "a" || e.key === "A";
+        if (multiplayer) return wasd;
+        return wasd || e.key === "ArrowLeft";
+      },
+      rightKey: (e) => {
+        const wasd = e.key === "d" || e.key === "D";
+        if (multiplayer) return wasd;
+        return wasd || e.key === "ArrowRight";
+      },
+      downKey: (e) => {
+        const wasd = e.key === "s" || e.key === "S";
+        if (multiplayer) return wasd;
+        return wasd || e.key === "ArrowDown";
+      },
+      rotateKey: (e) => {
+        const wasd = e.key === "w" || e.key === "W";
+        if (multiplayer) return wasd;
+        return wasd || e.key === "ArrowUp";
+      },
     }),
     createPlayer({
       fieldId: "tet-field-2",
