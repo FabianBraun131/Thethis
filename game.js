@@ -3,6 +3,8 @@
 
   const COLS = 10;
   const ROWS = 20;
+  const HOLD_INITIAL_MS = 130;
+  const HOLD_REPEAT_MS = 40;
   const IMAGE_EXT_RE = /\.(png|jpe?g|webp|gif|bmp|avif|svg|jpag)(\?.*)?$/i;
   const COLORS = {
     I: "rgb(0, 240, 240)",
@@ -36,6 +38,7 @@
   const startLevelInput = document.getElementById("start-level");
   const multiplayerToggle = document.getElementById("multiplayer-toggle");
   const player2Panel = document.getElementById("player2-panel");
+  const overlayCard = overlay ? overlay.querySelector(".card") : null;
 
   let createdFaceObjectUrls = [];
   let faceImages = [];
@@ -95,6 +98,11 @@
       level: 1,
       dropMs: 800,
       lastTick: 0,
+      hold: {
+        left: { active: false, nextAt: 0 },
+        right: { active: false, nextAt: 0 },
+        down: { active: false, nextAt: 0 },
+      },
     };
     for (let i = 0; i < ROWS * COLS; i++) {
       const el = document.createElement("div");
@@ -292,6 +300,43 @@
     updateHud(p);
   }
 
+  function moveHorizontal(p, dir) {
+    if (!p.running || paused || !p.current) return;
+    if (!collides(p, p.current, 0, dir)) p.current.col += dir;
+  }
+
+  function softDropStep(p) {
+    if (!p.running || paused || !p.current) return;
+    if (!collides(p, p.current, 1, 0)) {
+      p.current.row += 1;
+      p.score += 1;
+      updateHud(p);
+    }
+  }
+
+  function setHoldState(p, key, isDown, now) {
+    const hold = p.hold[key];
+    if (!hold) return;
+    hold.active = isDown;
+    if (isDown) hold.nextAt = now + HOLD_INITIAL_MS;
+  }
+
+  function processHeldInput(p, now) {
+    if (!p.enabled || !p.running || paused || !p.current) return;
+    if (p.hold.left.active && now >= p.hold.left.nextAt) {
+      moveHorizontal(p, -1);
+      p.hold.left.nextAt = now + HOLD_REPEAT_MS;
+    }
+    if (p.hold.right.active && now >= p.hold.right.nextAt) {
+      moveHorizontal(p, 1);
+      p.hold.right.nextAt = now + HOLD_REPEAT_MS;
+    }
+    if (p.hold.down.active && now >= p.hold.down.nextAt) {
+      softDropStep(p);
+      p.hold.down.nextAt = now + HOLD_REPEAT_MS;
+    }
+  }
+
   function setMultiplayerUI() { if (player2Panel) player2Panel.classList.toggle("hidden", !multiplayer); }
   function startGame() {
     multiplayer = !!multiplayerToggle?.checked;
@@ -304,6 +349,7 @@
     if (multiplayer) resetPlayer(players[1], startLevel);
     else { players[1].running = false; players[1].current = null; players[1].board = Array.from({ length: ROWS }, () => Array(COLS).fill(null)); updateHud(players[1]); }
     paused = false;
+    if (overlayCard) overlayCard.classList.remove("celebrate");
     overlay.classList.add("hidden");
     startBtn.textContent = "Neu starten";
   }
@@ -322,25 +368,58 @@
     }
     if (!anyRunning()) return;
     const startLevel = clampStartLevel(startLevelInput ? startLevelInput.value : 1);
+    const now = performance.now();
     for (const p of players) {
       if (!p.enabled || !p.running || paused || !p.current) continue;
-      if (p.controls.leftKey(e)) { if (!collides(p, p.current, 0, -1)) p.current.col -= 1; e.preventDefault(); }
-      else if (p.controls.rightKey(e)) { if (!collides(p, p.current, 0, 1)) p.current.col += 1; e.preventDefault(); }
-      else if (p.controls.downKey(e)) { if (!collides(p, p.current, 1, 0)) { p.current.row += 1; p.score += 1; updateHud(p); } e.preventDefault(); }
+      if (p.controls.leftKey(e)) {
+        if (!e.repeat) moveHorizontal(p, -1);
+        setHoldState(p, "left", true, now);
+        e.preventDefault();
+      }
+      else if (p.controls.rightKey(e)) {
+        if (!e.repeat) moveHorizontal(p, 1);
+        setHoldState(p, "right", true, now);
+        e.preventDefault();
+      }
+      else if (p.controls.downKey(e)) {
+        if (!e.repeat) softDropStep(p);
+        setHoldState(p, "down", true, now);
+        e.preventDefault();
+      }
       else if (p.controls.rotateKey(e)) { rotate(p); e.preventDefault(); }
-      else if (p.controls.dropKey(e)) { hardDrop(p, startLevel); e.preventDefault(); }
+      else if (p.controls.dropKey(e)) { if (!e.repeat) hardDrop(p, startLevel); e.preventDefault(); }
+    }
+  });
+
+  document.addEventListener("keyup", (e) => {
+    for (const p of players) {
+      if (!p.enabled) continue;
+      if (p.controls.leftKey(e)) setHoldState(p, "left", false, 0);
+      else if (p.controls.rightKey(e)) setHoldState(p, "right", false, 0);
+      else if (p.controls.downKey(e)) setHoldState(p, "down", false, 0);
     }
   });
 
   function loop() {
     const startLevel = clampStartLevel(startLevelInput ? startLevelInput.value : 1);
+    const now = performance.now();
+    for (const p of players) processHeldInput(p, now);
     for (const p of players) tickPlayer(p, startLevel);
     for (const p of players) if (p.enabled) { renderField(p); renderNext(p); }
     if (!anyRunning() && overlay.classList.contains("hidden")) {
-      const p1 = `P1: ${players[0].score}`;
-      const p2 = multiplayer ? ` · P2: ${players[1].score}` : "";
-      overlayTitle.textContent = "Game Over";
-      overlayMsg.textContent = p1 + p2;
+      if (multiplayer) {
+        const p1 = players[0].score;
+        const p2 = players[1].score;
+        if (p1 > p2) overlayTitle.textContent = "Spieler 1 gewinnt! 🎉";
+        else if (p2 > p1) overlayTitle.textContent = "Spieler 2 gewinnt! 🎉";
+        else overlayTitle.textContent = "Unentschieden! 🤝";
+        overlayMsg.textContent = `🏆 P1: ${p1} Punkte · P2: ${p2} Punkte · ✨ Stark gespielt!`;
+        if (overlayCard) overlayCard.classList.add("celebrate");
+      } else {
+        overlayTitle.textContent = "Game Over";
+        overlayMsg.textContent = `Punkte: ${players[0].score}`;
+        if (overlayCard) overlayCard.classList.remove("celebrate");
+      }
       overlay.classList.remove("hidden");
     }
     animFrame = requestAnimationFrame(loop);
