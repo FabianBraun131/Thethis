@@ -216,6 +216,7 @@
   const overlayTitle = document.getElementById("overlay-title");
   const overlayMsg = document.getElementById("overlay-msg");
   const startBtn = document.getElementById("start-btn");
+  const startLevelInput = document.getElementById("start-level");
 
   let board = [];
   let bag = [];
@@ -223,6 +224,7 @@
   let nextType = null;
   let score = 0;
   let linesTotal = 0;
+  let startLevel = 1;
   let level = 1;
   let dropMs = 800;
   let lastTick = 0;
@@ -254,6 +256,16 @@
 
   function emptyBoard() {
     board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+  }
+
+  function clampStartLevel(value) {
+    const parsed = Number.parseInt(String(value), 10);
+    if (!Number.isFinite(parsed)) return 1;
+    return Math.max(1, Math.min(10, parsed));
+  }
+
+  function speedForLevel(currentLevel) {
+    return Math.max(120, 800 - (currentLevel - 1) * 75);
   }
 
   function getShapeCells(type, rot) {
@@ -350,8 +362,8 @@
       const lineScores = [0, 100, 300, 500, 800];
       score += lineScores[cleared] * level;
       linesTotal += cleared;
-      level = Math.min(10, Math.floor(linesTotal / 10) + 1);
-      dropMs = Math.max(120, 800 - (level - 1) * 75);
+      level = Math.min(10, startLevel + Math.floor(linesTotal / 10));
+      dropMs = speedForLevel(level);
     }
   }
 
@@ -495,8 +507,10 @@
     current = spawnPiece(pullFromBag());
     score = 0;
     linesTotal = 0;
-    level = 1;
-    dropMs = 800;
+    startLevel = clampStartLevel(startLevelInput ? startLevelInput.value : 1);
+    if (startLevelInput) startLevelInput.value = String(startLevel);
+    level = startLevel;
+    dropMs = speedForLevel(level);
     lastTick = performance.now();
     running = true;
     paused = false;
