@@ -15,10 +15,54 @@
     ghost: "rgba(200, 220, 255, 0.45)",
     fallback: "rgb(255, 0, 255)",
   };
+  const IMAGE_EXT_RE = /\.(png|jpe?g|webp|gif|bmp|avif|svg|jpag)(\?.*)?$/i;
+  let faceImages = [];
+  let createdFaceObjectUrls = [];
 
   function fillForPiece(type) {
     const c = COLORS[type];
     return typeof c === "string" ? c : COLORS.fallback;
+  }
+
+  function isImageFile(file) {
+    if (!file) return false;
+    if (typeof file.type === "string" && file.type.startsWith("image/")) return true;
+    return IMAGE_EXT_RE.test(file.name || "");
+  }
+
+  function disposeFaceObjectUrls() {
+    for (const url of createdFaceObjectUrls) URL.revokeObjectURL(url);
+    createdFaceObjectUrls = [];
+  }
+
+  function setFaceStatus(msg) {
+    if (faceStatus) faceStatus.textContent = msg;
+  }
+
+  function setFaceImagesFromFiles(fileList) {
+    disposeFaceObjectUrls();
+    const files = Array.from(fileList || []).filter(isImageFile);
+    faceImages = files.map((file) => {
+      const url = URL.createObjectURL(file);
+      createdFaceObjectUrls.push(url);
+      return url;
+    });
+    nextFaceMap = createFaceMap();
+    if (current) current.faceMap = createFaceMap();
+    if (faceImages.length > 0) {
+      setFaceStatus(`${faceImages.length} Foto(s) geladen.`);
+    } else {
+      setFaceStatus("Keine Fotos gewählt (Farb-Fallback aktiv).");
+    }
+  }
+
+  function randomFaceStyle() {
+    if (faceImages.length === 0) return null;
+    const image = faceImages[(Math.random() * faceImages.length) | 0];
+    const posX = 20 + ((Math.random() * 60) | 0);
+    const posY = 20 + ((Math.random() * 60) | 0);
+    const zoom = 170 + ((Math.random() * 90) | 0);
+    return { image, posX, posY, zoom };
   }
 
   /** 4 Rotationen je Form: 4×4-Matrix, 1 = Block */
@@ -215,6 +259,9 @@
   const overlay = document.getElementById("overlay");
   const overlayTitle = document.getElementById("overlay-title");
   const overlayMsg = document.getElementById("overlay-msg");
+  const pickFacesBtn = document.getElementById("pick-faces-btn");
+  const faceFilesInput = document.getElementById("face-files");
+  const faceStatus = document.getElementById("face-status");
   const startBtn = document.getElementById("start-btn");
   const startLevelInput = document.getElementById("start-level");
 
@@ -222,6 +269,7 @@
   let bag = [];
   let current = null;
   let nextType = null;
+  let nextFaceMap = null;
   let score = 0;
   let linesTotal = 0;
   let startLevel = 1;
@@ -236,6 +284,7 @@
   emptyBoard();
   refillBag();
   nextType = pullFromBag();
+  nextFaceMap = createFaceMap();
 
   function shuffle(a) {
     for (let i = a.length - 1; i > 0; i--) {
@@ -258,6 +307,16 @@
     board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
   }
 
+  function createFaceMap() {
+    const faceMap = Array.from({ length: 4 }, () => Array(4).fill(null));
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        faceMap[r][c] = randomFaceStyle();
+      }
+    }
+    return faceMap;
+  }
+
   function clampStartLevel(value) {
     const parsed = Number.parseInt(String(value), 10);
     if (!Number.isFinite(parsed)) return 1;
@@ -274,7 +333,7 @@
     return rots[r];
   }
 
-  function spawnPiece(type) {
+  function spawnPiece(type, faceMapOverride) {
     const shape = getShapeCells(type, 0);
     let minC = 4,
       maxC = -1,
@@ -293,7 +352,8 @@
     const w = maxC - minC + 1;
     const col = Math.floor((COLS - w) / 2) - minC;
     const row = -minR;
-    return { type, rot: 0, row, col };
+    const faceMap = faceMapOverride || createFaceMap();
+    return { type, rot: 0, row, col, faceMap };
   }
 
   function collides(piece, dRow, dCol, newRot) {
@@ -342,7 +402,8 @@
           gameOver();
           return;
         }
-        board[br][bc] = current.type;
+        const face = current.faceMap ? current.faceMap[r][c] : null;
+        board[br][bc] = { type: current.type, face };
       }
     }
   }
@@ -386,17 +447,31 @@
     return false;
   }
 
-  function styleTetCell(el, bg, borderStrong) {
-    if (bg) {
-      el.style.backgroundColor = bg;
-      el.style.borderColor = borderStrong
-        ? "rgba(255,255,255,0.6)"
-        : "rgba(255,255,255,0.35)";
+  function styleTetCell(el, type, borderStrong, isGhost, faceStyle) {
+    if (type) {
+      const borderColor = fillForPiece(type);
+      if (isGhost) {
+        el.style.backgroundColor = COLORS.ghost;
+        el.style.backgroundImage = "none";
+      } else if (faceStyle) {
+        // Keep piece color visible while image is loading/missing.
+        el.style.backgroundColor = borderColor;
+        el.style.backgroundImage = `url("${faceStyle.image}")`;
+        el.style.backgroundSize = `${faceStyle.zoom}%`;
+        el.style.backgroundPosition = `${faceStyle.posX}% ${faceStyle.posY}%`;
+      } else {
+        el.style.backgroundColor = fillForPiece(type);
+        el.style.backgroundImage = "none";
+      }
+      el.style.borderColor = borderStrong ? borderColor : "rgba(255,255,255,0.35)";
       el.style.boxShadow = borderStrong
         ? "inset 0 0 0 1px rgba(255,255,255,0.25)"
         : "none";
     } else {
       el.style.backgroundColor = "#0d1117";
+      el.style.backgroundImage = "none";
+      el.style.backgroundSize = "";
+      el.style.backgroundPosition = "";
       el.style.borderColor = "rgba(255,255,255,0.16)";
       el.style.boxShadow = "none";
     }
@@ -421,17 +496,26 @@
       if (!row) continue;
       for (let c = 0; c < COLS; c++) {
         const el = tetCells[r * COLS + c];
-        let bg = null;
+        let type = null;
+        let faceStyle = null;
+        let isGhost = false;
         let strong = true;
         if (row[c]) {
-          bg = fillForPiece(row[c]);
+          type = row[c].type;
+          faceStyle = row[c].face;
         } else if (current && pieceAtCell(current, r, c)) {
-          bg = fillForPiece(current.type);
+          type = current.type;
+          const cr = r - current.row;
+          const cc = c - current.col;
+          if (cr >= 0 && cr < 4 && cc >= 0 && cc < 4 && current.faceMap) {
+            faceStyle = current.faceMap[cr][cc];
+          }
         } else if (gh && pieceAtCell(gh, r, c)) {
-          bg = COLORS.ghost;
+          type = current.type;
+          isGhost = true;
           strong = false;
         }
-        styleTetCell(el, bg, strong);
+        styleTetCell(el, type, strong, isGhost, faceStyle);
       }
     }
     updateFieldMsg();
@@ -441,6 +525,9 @@
     for (let i = 0; i < 16; i++) {
       const el = nextCells[i];
       el.style.backgroundColor = "#161b22";
+      el.style.backgroundImage = "none";
+      el.style.backgroundSize = "";
+      el.style.backgroundPosition = "";
       el.style.borderColor = "rgba(255,255,255,0.22)";
       el.style.boxShadow = "none";
     }
@@ -451,8 +538,18 @@
       for (let sc = 0; sc < 4; sc++) {
         const el = nextCells[sr * 4 + sc];
         if (shape[sr][sc]) {
-          el.style.backgroundColor = color;
-          el.style.borderColor = "rgba(255,255,255,0.55)";
+          const faceStyle =
+            nextFaceMap && nextFaceMap[sr] ? nextFaceMap[sr][sc] : null;
+          el.style.backgroundColor = "#0d1117";
+          if (faceStyle) {
+            el.style.backgroundImage = `url("${faceStyle.image}")`;
+            el.style.backgroundSize = `${faceStyle.zoom}%`;
+            el.style.backgroundPosition = `${faceStyle.posX}% ${faceStyle.posY}%`;
+          } else {
+            el.style.backgroundImage = "none";
+            el.style.backgroundColor = color;
+          }
+          el.style.borderColor = color;
           el.style.boxShadow = "inset 0 0 0 1px rgba(255,255,255,0.3)";
         }
       }
@@ -476,8 +573,9 @@
         mergePiece();
         if (!running) return;
         clearLines();
-        current = spawnPiece(nextType);
+        current = spawnPiece(nextType, nextFaceMap);
         nextType = pullFromBag();
+        nextFaceMap = createFaceMap();
         if (collides(current, 0, 0)) gameOver();
       }
       updateHud();
@@ -504,7 +602,8 @@
     emptyBoard();
     refillBag();
     nextType = pullFromBag();
-    current = spawnPiece(pullFromBag());
+    nextFaceMap = createFaceMap();
+    current = spawnPiece(pullFromBag(), createFaceMap());
     score = 0;
     linesTotal = 0;
     startLevel = clampStartLevel(startLevelInput ? startLevelInput.value : 1);
@@ -518,6 +617,12 @@
   }
 
   startBtn.addEventListener("click", startGame);
+  if (pickFacesBtn && faceFilesInput) {
+    pickFacesBtn.addEventListener("click", () => faceFilesInput.click());
+    faceFilesInput.addEventListener("change", () => {
+      setFaceImagesFromFiles(faceFilesInput.files);
+    });
+  }
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "p" || e.key === "P") {
@@ -553,8 +658,9 @@
       mergePiece();
       if (!running) return;
       clearLines();
-      current = spawnPiece(nextType);
+      current = spawnPiece(nextType, nextFaceMap);
       nextType = pullFromBag();
+      nextFaceMap = createFaceMap();
       if (collides(current, 0, 0)) gameOver();
       updateHud();
       e.preventDefault();
@@ -563,4 +669,5 @@
 
   animFrame = requestAnimationFrame(loop);
   updateHud();
+  setFaceStatus("Keine Fotos gewählt (Farb-Fallback aktiv).");
 })();

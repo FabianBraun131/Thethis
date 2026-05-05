@@ -40,6 +40,9 @@
     <div class="card">
       <h2 id="overlay-title">Tetris</h2>
       <p id="overlay-msg">Steuere die Steine, fülle Reihen und sammle Punkte. Viel Erfolg!</p>
+      <button type="button" id="pick-faces-btn" class="secondary-btn">Ordner wählen</button>
+      <input type="file" id="face-files" accept="image/*" multiple webkitdirectory directory hidden />
+      <p class="small-info" id="face-status">Keine Fotos gewählt (Farb-Fallback aktiv).</p>
       <label class="start-level-picker" for="start-level">Start-Level</label>
       <input type="number" id="start-level" min="1" max="10" step="1" value="1" />
       <button type="button" id="start-btn">Spiel starten</button>

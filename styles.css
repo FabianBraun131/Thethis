@@ -71,8 +71,11 @@ h1 {
   width: 32px;
   height: 32px;
   box-sizing: border-box;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 2px solid rgba(255, 255, 255, 0.16);
   background-color: #0d1117;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
   forced-color-adjust: none;
   -webkit-forced-color-adjust: none;
 }
@@ -125,8 +128,11 @@ h1 {
   width: 24px;
   height: 24px;
   box-sizing: border-box;
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  border: 2px solid rgba(255, 255, 255, 0.22);
   background-color: #161b22;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
   forced-color-adjust: none;
   -webkit-forced-color-adjust: none;
 }
@@ -223,6 +229,19 @@ h1 {
   background: #0d1117;
   color: var(--text);
   font: inherit;
+}
+
+.small-info {
+  margin: 0.55rem 0 0.85rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.secondary-btn {
+  width: 100%;
+  margin-bottom: 0.35rem;
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--text);
 }
 
 button {
