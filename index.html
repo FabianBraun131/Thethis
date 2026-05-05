@@ -9,32 +9,60 @@
 </head>
 <body>
   <h1>Tetris</h1>
-  <div class="wrap">
-    <div class="field-wrap" id="field-wrap">
-      <div class="tet-field" id="tet-field" aria-label="Spielfeld"></div>
-      <div class="field-msg" id="field-msg" aria-live="polite"></div>
-    </div>
-    <div class="side">
-      <h2>Punkte</h2>
-      <div class="stat" id="score">0</div>
-      <h2>Level</h2>
-      <div class="stat" id="level">1</div>
-      <h2>Linien</h2>
-      <div class="stat" id="lines">0</div>
-      <h2>Nächstes</h2>
-      <div class="next-wrap">
-        <div class="next-field" id="next-field" aria-hidden="true"></div>
+  <div class="wrap players-wrap">
+    <div class="player-panel" id="player1-panel">
+      <h2 class="player-title">Spieler 1</h2>
+      <div class="field-wrap" id="field-wrap">
+        <div class="tet-field" id="tet-field" aria-label="Spielfeld Spieler 1"></div>
+        <div class="field-msg" id="field-msg" aria-live="polite"></div>
       </div>
-      <div class="controls">
-        <kbd>←</kbd><kbd>→</kbd> Bewegen &nbsp;
-        <kbd>↓</kbd> Schneller<br />
-        <kbd>↑</kbd> Drehen &nbsp;
-        <kbd>Leertaste</kbd> Fallen<br />
-        <kbd>P</kbd> Pause
+      <div class="side">
+        <h2>Punkte</h2>
+        <div class="stat" id="score">0</div>
+        <h2>Level</h2>
+        <div class="stat" id="level">1</div>
+        <h2>Linien</h2>
+        <div class="stat" id="lines">0</div>
+        <h2>Nächstes</h2>
+        <div class="next-wrap">
+          <div class="next-field" id="next-field" aria-hidden="true"></div>
+        </div>
+        <div class="controls">
+          <strong>P1:</strong> <kbd>A</kbd><kbd>D</kbd> Bewegen &nbsp;
+          <kbd>S</kbd> Schneller<br />
+          <kbd>W</kbd> Drehen &nbsp;
+          <kbd>Space</kbd> Fallen
+        </div>
+      </div>
+    </div>
+
+    <div class="player-panel hidden" id="player2-panel">
+      <h2 class="player-title">Spieler 2</h2>
+      <div class="field-wrap" id="field-wrap-2">
+        <div class="tet-field" id="tet-field-2" aria-label="Spielfeld Spieler 2"></div>
+        <div class="field-msg" id="field-msg-2" aria-live="polite"></div>
+      </div>
+      <div class="side">
+        <h2>Punkte</h2>
+        <div class="stat" id="score-2">0</div>
+        <h2>Level</h2>
+        <div class="stat" id="level-2">1</div>
+        <h2>Linien</h2>
+        <div class="stat" id="lines-2">0</div>
+        <h2>Nächstes</h2>
+        <div class="next-wrap">
+          <div class="next-field" id="next-field-2" aria-hidden="true"></div>
+        </div>
+        <div class="controls">
+          <strong>P2:</strong> <kbd>←</kbd><kbd>→</kbd> Bewegen &nbsp;
+          <kbd>↓</kbd> Schneller<br />
+          <kbd>↑</kbd> Drehen &nbsp;
+          <kbd>Enter</kbd> Fallen
+        </div>
       </div>
     </div>
   </div>
-  <footer>Tetris im Browser · <code>index.html</code>, <code>styles.css</code>, <code>game.js</code> im gleichen Ordner (oder lokaler Server)</footer>
+  <footer>Tetris im Browser · <kbd>P</kbd> Pause · Multiplayer: P1 (WASD + Space), P2 (Pfeile + Enter)</footer>
 
   <div id="overlay">
     <div class="card">
@@ -43,6 +71,10 @@
       <button type="button" id="pick-faces-btn" class="secondary-btn">Ordner wählen</button>
       <input type="file" id="face-files" accept="image/*" multiple webkitdirectory directory hidden />
       <p class="small-info" id="face-status">Keine Fotos gewählt (Farb-Fallback aktiv).</p>
+      <label class="start-level-picker mode-toggle" for="multiplayer-toggle">
+        <input type="checkbox" id="multiplayer-toggle" />
+        Multiplayer aktivieren
+      </label>
       <label class="start-level-picker" for="start-level">Start-Level</label>
       <input type="number" id="start-level" min="1" max="10" step="1" value="1" />
       <button type="button" id="start-btn">Spiel starten</button>

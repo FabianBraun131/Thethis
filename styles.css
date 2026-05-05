@@ -45,6 +45,29 @@ h1 {
   padding: 1rem;
 }
 
+.players-wrap {
+  align-items: stretch;
+}
+
+.player-panel {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.player-panel.hidden {
+  display: none;
+}
+
+.player-title {
+  margin: 0;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 0.9rem;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+}
+
 /* DOM-Zellen statt Canvas: liegen garantiert im Vordergrund des Feldes */
 .field-wrap {
   position: relative;
@@ -218,6 +241,14 @@ h1 {
   font-size: 0.8rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.mode-toggle {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.8rem;
 }
 
 #start-level {
