@@ -36,13 +36,19 @@
   const faceStatus = document.getElementById("face-status");
   const startBtn = document.getElementById("start-btn");
   const startLevelInput = document.getElementById("start-level");
+  const timedToggle = document.getElementById("timed-toggle");
+  const timeLimitWrap = document.getElementById("time-limit-wrap");
+  const timeLimitInput = document.getElementById("time-limit-min");
   const multiplayerToggle = document.getElementById("multiplayer-toggle");
   const player2Panel = document.getElementById("player2-panel");
   const overlayCard = overlay ? overlay.querySelector(".card") : null;
+  const gameTimerEl = document.getElementById("game-timer");
 
   let createdFaceObjectUrls = [];
   let faceImages = [];
   let multiplayer = false;
+  let timedMode = false;
+  let roundEndAt = 0;
   let paused = false;
   let animFrame = null;
 
@@ -338,16 +344,63 @@
   }
 
   function setMultiplayerUI() { if (player2Panel) player2Panel.classList.toggle("hidden", !multiplayer); }
+  function setTimedUI() { if (timeLimitWrap) timeLimitWrap.classList.toggle("hidden", !timedToggle?.checked); }
+
+  function updateGameTimerDisplay(now) {
+    if (!gameTimerEl) return;
+    const inGame = timedMode && roundEndAt > 0 && overlay.classList.contains("hidden");
+    if (!inGame) {
+      gameTimerEl.classList.add("hidden");
+      gameTimerEl.classList.remove("is-pause");
+      return;
+    }
+    const msLeft = Math.max(0, roundEndAt - now);
+    const totalSec = Math.ceil(msLeft / 1000);
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    gameTimerEl.textContent = `Restzeit ${m}:${String(s).padStart(2, "0")}`;
+    gameTimerEl.classList.remove("hidden");
+    gameTimerEl.classList.toggle("is-pause", paused && anyRunning());
+  }
+  function getTimeLimitMs() {
+    const value = Number.parseInt(timeLimitInput ? timeLimitInput.value : "3", 10);
+    const mins = Number.isFinite(value) ? Math.max(1, Math.min(60, value)) : 3;
+    if (timeLimitInput) timeLimitInput.value = String(mins);
+    return mins * 60 * 1000;
+  }
+
+  function showRoundResult(reason) {
+    if (multiplayer) {
+      const p1 = players[0].score;
+      const p2 = players[1].score;
+      if (p1 > p2) overlayTitle.textContent = "Spieler 1 gewinnt! 🎉";
+      else if (p2 > p1) overlayTitle.textContent = "Spieler 2 gewinnt! 🎉";
+      else overlayTitle.textContent = "Unentschieden! 🤝";
+      const reasonText = reason === "time" ? "⏱ Zeit ist abgelaufen." : "🏁 Beide Spiele beendet.";
+      overlayMsg.textContent = `${reasonText} · P1: ${p1} Punkte · P2: ${p2} Punkte`;
+      if (overlayCard) overlayCard.classList.add("celebrate");
+    } else {
+      overlayTitle.textContent = reason === "time" ? "Zeit abgelaufen ⏱" : "Game Over";
+      overlayMsg.textContent = `Punkte: ${players[0].score}`;
+      if (overlayCard) overlayCard.classList.remove("celebrate");
+    }
+    overlay.classList.remove("hidden");
+  }
+
   function startGame() {
     multiplayer = !!multiplayerToggle?.checked;
+    timedMode = !!timedToggle?.checked;
     setMultiplayerUI();
     const startLevel = clampStartLevel(startLevelInput ? startLevelInput.value : 1);
+    const timeLimitMs = getTimeLimitMs();
     if (startLevelInput) startLevelInput.value = String(startLevel);
     players[0].enabled = true;
     players[1].enabled = multiplayer;
     resetPlayer(players[0], startLevel);
     if (multiplayer) resetPlayer(players[1], startLevel);
     else { players[1].running = false; players[1].current = null; players[1].board = Array.from({ length: ROWS }, () => Array(COLS).fill(null)); updateHud(players[1]); }
+    roundEndAt = timedMode ? performance.now() + timeLimitMs : 0;
+    updateGameTimerDisplay(performance.now());
     paused = false;
     if (overlayCard) overlayCard.classList.remove("celebrate");
     overlay.classList.add("hidden");
@@ -357,6 +410,7 @@
   pickFacesBtn?.addEventListener("click", () => faceFilesInput?.click());
   faceFilesInput?.addEventListener("change", () => setFaceImagesFromFiles(faceFilesInput.files));
   startBtn?.addEventListener("click", startGame);
+  timedToggle?.addEventListener("change", setTimedUI);
   multiplayerToggle?.addEventListener("change", () => { multiplayer = !!multiplayerToggle.checked; setMultiplayerUI(); });
 
   document.addEventListener("keydown", (e) => {
@@ -406,27 +460,26 @@
     for (const p of players) processHeldInput(p, now);
     for (const p of players) tickPlayer(p, startLevel);
     for (const p of players) if (p.enabled) { renderField(p); renderNext(p); }
-    if (!anyRunning() && overlay.classList.contains("hidden")) {
-      if (multiplayer) {
-        const p1 = players[0].score;
-        const p2 = players[1].score;
-        if (p1 > p2) overlayTitle.textContent = "Spieler 1 gewinnt! 🎉";
-        else if (p2 > p1) overlayTitle.textContent = "Spieler 2 gewinnt! 🎉";
-        else overlayTitle.textContent = "Unentschieden! 🤝";
-        overlayMsg.textContent = `🏆 P1: ${p1} Punkte · P2: ${p2} Punkte · ✨ Stark gespielt!`;
-        if (overlayCard) overlayCard.classList.add("celebrate");
-      } else {
-        overlayTitle.textContent = "Game Over";
-        overlayMsg.textContent = `Punkte: ${players[0].score}`;
-        if (overlayCard) overlayCard.classList.remove("celebrate");
+    updateGameTimerDisplay(now);
+    if (overlay.classList.contains("hidden")) {
+      const timeExpired = timedMode && roundEndAt > 0 && now >= roundEndAt;
+      const endedEarlyMultiplayer = multiplayer && !players[0].running && !players[1].running;
+      const endedSingle = !multiplayer && !players[0].running;
+      if (timeExpired || endedEarlyMultiplayer || endedSingle) {
+        if (timeExpired) {
+          for (const p of players) if (p.enabled) p.running = false;
+          showRoundResult("time");
+        } else {
+          showRoundResult("finished");
+        }
       }
-      overlay.classList.remove("hidden");
     }
     animFrame = requestAnimationFrame(loop);
   }
 
   setFaceStatus("Keine Fotos gewählt (Farb-Fallback aktiv).");
   setMultiplayerUI();
+  setTimedUI();
   for (const p of players) { p.board = Array.from({ length: ROWS }, () => Array(COLS).fill(null)); updateHud(p); renderField(p); renderNext(p); }
   animFrame = requestAnimationFrame(loop);
 })();

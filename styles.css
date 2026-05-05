@@ -29,11 +29,29 @@ body {
 }
 
 h1 {
-  margin: 0 0 1rem;
+  margin: 0 0 0.35rem;
   font-weight: 600;
   letter-spacing: 0.08em;
   font-size: 1.75rem;
   text-transform: uppercase;
+}
+
+.game-timer {
+  margin: 0 0 0.85rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(22, 27, 34, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+}
+
+.game-timer.is-pause {
+  opacity: 0.55;
 }
 
 .wrap {
@@ -57,6 +75,10 @@ h1 {
 
 .player-panel.hidden {
   display: none;
+}
+
+.hidden {
+  display: none !important;
 }
 
 .player-title {
@@ -262,7 +284,8 @@ h1 {
   margin-bottom: 0.8rem;
 }
 
-#start-level {
+#start-level,
+#time-limit-min {
   width: 100%;
   margin: 0 0 1rem;
   padding: 0.55rem 0.65rem;

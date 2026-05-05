@@ -9,6 +9,7 @@
 </head>
 <body>
   <h1>Tetris</h1>
+  <div id="game-timer" class="game-timer hidden" aria-live="polite" aria-atomic="true"></div>
   <div class="wrap players-wrap">
     <div class="player-panel" id="player1-panel">
       <h2 class="player-title">Spieler 1</h2>
@@ -75,6 +76,14 @@
         <input type="checkbox" id="multiplayer-toggle" />
         Multiplayer aktivieren
       </label>
+      <label class="start-level-picker mode-toggle" for="timed-toggle">
+        <input type="checkbox" id="timed-toggle" />
+        Zeitmodus aktivieren
+      </label>
+      <div id="time-limit-wrap" class="hidden">
+        <label class="start-level-picker" for="time-limit-min">Spielzeit (Minuten)</label>
+        <input type="number" id="time-limit-min" min="1" max="60" step="1" value="3" />
+      </div>
       <label class="start-level-picker" for="start-level">Start-Level</label>
       <input type="number" id="start-level" min="1" max="10" step="1" value="1" />
       <button type="button" id="start-btn">Spiel starten</button>
